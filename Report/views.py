@@ -122,11 +122,121 @@ def basic_information(request):
     return JsonResponse(result)
 
 
-def save(request):
+# ===============根据起始和结束时间筛选相应的history======================
+def range_history_select(str1, str2):
+    start_time = datetime.datetime.strptime(str1, '%Y-%m-%d')
+    end_time = datetime.datetime.strptime(str2, '%Y-%m-%d')
+    offset = datetime.timedelta(days=1)
+    end_time = end_time + offset
+    cursor = connection.cursor()
+    cursor.execute("select * from history")
+    data = cursor.fetchall()
+    history = pd.DataFrame(list(data))
+    history.columns = ['ID', 'user_id', 'user_action', 'action_post_id', 'action_post_type', 'action_time',
+                       'leave_time', 'ip']
+    history['action_time'] = pd.to_datetime(history['action_time'])
+    history['leave_time'] = pd.to_datetime(history['leave_time'])
+
+    range_history = history[(history['action_time'] > start_time) & (history['action_time'] <= end_time)]
+    return range_history
+
+
+def posts_select():
+    cursor = connection.cursor()
+    cursor.execute("select * from wp_posts")
+    data = cursor.fetchall()
+    post = pd.DataFrame(list(data))
+    post.columns = ['ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title',
+                    'post_excerpt', 'post_status', 'comment_status', 'ping_status', 'post_password', 'post_name',
+                    'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_content_filtered',
+                    'post_parent', 'guid', 'menu_order', 'post_type', 'post_mime_type', 'comment_type']
+    return post
+
+
+# ======================根据发送的时间获取相应统计数据=======================
+def browse_statistic(request):
     if request.method == 'POST':
-        token = request.POST.get('token')
-        verified_token = parse_token(token)
-        username = verified_token['username']
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        range_history = range_history_select(start, end)
+        response = {}
+
+        temp = range_history['action_post_id'].value_counts().rename('count').reset_index()
+        temp.columns = ['post_id', 'count']
+        temp = temp.head(10)
+        top = temp['post_id'].tolist()
+        nums = temp['count'].tolist()
+
+        post = posts_select()
+        temp_result = post[post['ID'].isin(top)]
+        result = temp_result['post_title'].tolist()
+        print(result)
+
+        response['post_title'] = result
+        response['count'] = nums
+
+        return JsonResponse(response)
+
+
+def qa_statistic(request):
+    if request.method == 'POST':
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        range_history = range_history_select(start, end)
+        range_history = range_history.drop_duplicates(keep='first')
+        range_history = range_history.reset_index(drop=True)
+        posts_list = range_history['action_post_id'].tolist()
+        post = posts_select()
+        temp = post[post['ID'].isin(posts_list)]
+        question = temp[temp['post_type'] == 'dwqa-question']
+        answer = temp[temp['post_type'] == 'dwqa-answer']
+        response = {}
+
+        total_question = len(question)
+        total_answer = len(answer)
+
+        q_list = question['ID'].tolist()
+        a_list = answer['ID'].tolist()
+        qa = q_list + a_list
+
+        all_history = range_history_select(start, end)
+        qa_list = all_history[all_history['action_post_id'].isin(qa)]
+        qa_list = qa_list['action_post_id'].value_counts().rename('count').reset_index()
+        qa_list.columns = ['post_id', 'count']
+        qa_list = qa_list.head(10)
+        print(qa_list)
+        top_qa = qa_list['post_id'].tolist()
+
+        ret = post[post['ID'].isin(top_qa)]
+        result = ret['post_title'].tolist()
+
+        response['total_question'] = total_question
+        response['total_answer'] = total_answer
+        response['hot_qa'] = result
+
+        return JsonResponse(response)
+
+
+def browse_track(request):
+    if request.method == 'POST':
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        start_time = datetime.datetime.strptime(start, '%Y-%m-%d')
+        end_time = datetime.datetime.strptime(end, '%Y-%m-%d')
+        offset = datetime.timedelta(days=1)
+        end_time = end_time + offset
+        time_divide = pd.date_range(start_time, end_time, freq='24H')
+        response = {}
+        print(time_divide)
+        history = range_history_select(start, end)
+        print(history)
+        nums = []
+        for i in range(len(time_divide)-1):
+            temp = history[history['action_time'] > time_divide[i]]
+            temp = history[history['action_time'] <= time_divide[i+1]]
+            nums.append(len(temp))
+        response['daily_browse'] = nums
+        return JsonResponse(response)
 
 
 

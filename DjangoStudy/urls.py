@@ -29,5 +29,8 @@ urlpatterns = [
     path('login', views.login),
     path('register', views.register),
     path('basic_information', views.basic_information),
+    path('browse_statistic', views.browse_statistic),
+    path('qa_statistic', views.qa_statistic),
+    path('browse_track', views.browse_track),
 
 ]
