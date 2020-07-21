@@ -7,6 +7,7 @@ import datetime
 from Report.jwt_token import create_token, parse_payload, parse_token
 import hashlib
 from Report.models import User
+import os
 
 
 def book_detail(request, book_id):
@@ -128,12 +129,10 @@ def range_history_select(str1, str2):
     end_time = datetime.datetime.strptime(str2, '%Y-%m-%d')
     offset = datetime.timedelta(days=1)
     end_time = end_time + offset
-    cursor = connection.cursor()
-    cursor.execute("select * from history")
-    data = cursor.fetchall()
-    history = pd.DataFrame(list(data))
-    history.columns = ['ID', 'user_id', 'user_action', 'action_post_id', 'action_post_type', 'action_time',
-                       'leave_time', 'ip']
+
+    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
+    history = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+
     history['action_time'] = pd.to_datetime(history['action_time'])
     history['leave_time'] = pd.to_datetime(history['leave_time'])
 
@@ -142,14 +141,11 @@ def range_history_select(str1, str2):
 
 
 def posts_select():
-    cursor = connection.cursor()
-    cursor.execute("select * from wp_posts")
-    data = cursor.fetchall()
-    post = pd.DataFrame(list(data))
-    post.columns = ['ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title',
-                    'post_excerpt', 'post_status', 'comment_status', 'ping_status', 'post_password', 'post_name',
-                    'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_content_filtered',
-                    'post_parent', 'guid', 'menu_order', 'post_type', 'post_mime_type', 'comment_type']
+    time1 =datetime.datetime.now()
+    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_posts.csv')
+    post = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+    time2 = datetime.datetime.now()
+    print(time2-time1)
     return post
 
 
@@ -161,11 +157,14 @@ def browse_statistic(request):
         range_history = range_history_select(start, end)
         response = {}
 
+        time1 = datetime.datetime.now()
         temp = range_history['action_post_id'].value_counts().rename('count').reset_index()
         temp.columns = ['post_id', 'count']
         temp = temp.head(10)
         top = temp['post_id'].tolist()
         nums = temp['count'].tolist()
+        time2 = datetime.datetime.now()
+        print(time2-time1)
 
         post = posts_select()
         temp_result = post[post['ID'].isin(top)]
@@ -174,6 +173,9 @@ def browse_statistic(request):
 
         response['post_title'] = result
         response['count'] = nums
+
+        time3 = datetime.datetime.now()
+        print(time3-time2)
 
         return JsonResponse(response)
 
@@ -231,13 +233,30 @@ def browse_track(request):
         history = range_history_select(start, end)
         print(history)
         nums = []
+        time1 = datetime.datetime.now()
         for i in range(len(time_divide)-1):
             temp = history[history['action_time'] > time_divide[i]]
-            temp = history[history['action_time'] <= time_divide[i+1]]
-            nums.append(len(temp))
+            result = temp[temp['action_time'] <= time_divide[i+1]]
+            nums.append(len(result))
+        time2 = datetime.datetime.now()
+        print((time2-time1).seconds)
         response['daily_browse'] = nums
+        print(response)
         return JsonResponse(response)
 
+
+def show_stu_id(request):
+    if request.method == 'POST':
+        print("the POST method")
+        username = request.POST.get('username')
+        user = User.objects.filter(username=username)
+        stu = ""
+        if user.count():
+            user = user.first()
+            stu = user.spark_id
+            print(stu)
+
+    return HttpResponse(stu)
 
 
 
