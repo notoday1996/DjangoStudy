@@ -32,6 +32,9 @@ urlpatterns = [
     path('browse_statistic', views.browse_statistic),
     path('qa_statistic', views.qa_statistic),
     path('browse_track', views.browse_track),
-    path('show_stu_id', views.show_stu_id)
+    path('personal_information', views.personal_information),
+    path('student_info', views.student_info),
+    path('personal_browse_track', views.personal_browse_track),
+    path('student_browse_track', views.student_browse_track),
 
 ]

@@ -101,7 +101,33 @@ def register(request):
 
     return HttpResponse(json.dumps(response))
 
+# ======================总体情况统计部分=====================
 
+
+# ===============根据起始和结束时间筛选相应的history======================
+def range_history_select(str1, str2):
+    start_time = datetime.datetime.strptime(str1, '%Y-%m-%d')
+    end_time = datetime.datetime.strptime(str2, '%Y-%m-%d')
+    offset = datetime.timedelta(days=1)
+    end_time = end_time + offset
+
+    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
+    history = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+
+    history['action_time'] = pd.to_datetime(history['action_time'])
+    history['leave_time'] = pd.to_datetime(history['leave_time'])
+
+    range_history = history[(history['action_time'] > start_time) & (history['action_time'] <= end_time)]
+    return range_history
+
+
+def posts_select():
+    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_posts.csv')
+    post = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+    return post
+
+
+# ======================根据发送的时间获取相应统计数据=======================
 def basic_information(request):
     # ==================读取所有的历史记录=================
     cursor = connection.cursor()
@@ -123,33 +149,6 @@ def basic_information(request):
     return JsonResponse(result)
 
 
-# ===============根据起始和结束时间筛选相应的history======================
-def range_history_select(str1, str2):
-    start_time = datetime.datetime.strptime(str1, '%Y-%m-%d')
-    end_time = datetime.datetime.strptime(str2, '%Y-%m-%d')
-    offset = datetime.timedelta(days=1)
-    end_time = end_time + offset
-
-    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
-    history = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
-
-    history['action_time'] = pd.to_datetime(history['action_time'])
-    history['leave_time'] = pd.to_datetime(history['leave_time'])
-
-    range_history = history[(history['action_time'] > start_time) & (history['action_time'] <= end_time)]
-    return range_history
-
-
-def posts_select():
-    time1 =datetime.datetime.now()
-    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_posts.csv')
-    post = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
-    time2 = datetime.datetime.now()
-    print(time2-time1)
-    return post
-
-
-# ======================根据发送的时间获取相应统计数据=======================
 def browse_statistic(request):
     if request.method == 'POST':
         start = request.POST.get('startTime')
@@ -233,30 +232,129 @@ def browse_track(request):
         history = range_history_select(start, end)
         print(history)
         nums = []
-        time1 = datetime.datetime.now()
         for i in range(len(time_divide)-1):
             temp = history[history['action_time'] > time_divide[i]]
             result = temp[temp['action_time'] <= time_divide[i+1]]
             nums.append(len(result))
-        time2 = datetime.datetime.now()
-        print((time2-time1).seconds)
         response['daily_browse'] = nums
         print(response)
         return JsonResponse(response)
+# =======================总体情况统计部分结束=========================
 
 
-def show_stu_id(request):
+# ===================学生个人信息部分======================
+
+# ====================各项基础信息的返回=====================
+def student_information(stu_id):
+    response = {}
+
+    path = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')
+    information = pd.read_excel(path, encoding='utf-8', index_col=False, header=0)
+    print(information)
+    stu = information[information['stu_id'] == stu_id]
+
+    response['this_week_browse'] = stu['this_week_browse'].tolist()[0]
+    response['last_week_browse'] = stu['last_week_browse'].tolist()[0]
+    response['talk_QQ'] = stu['talk_QQ'].tolist()[0]
+    response['test_score'] = stu['talk_QQ'].tolist()[0]
+    response['metacognition'] = stu['metacognition'].tolist()[0]
+    response['deal_style'] = stu['deal_style'].tolist()[0]
+    response['perception_style'] = stu['perception_style'].tolist()[0]
+    response['understand_style'] = stu['understand_style'].tolist()[0]
+    response['completion'] = stu['completion'].tolist()[0]
+    return response
+
+
+def personal_information(request):
     if request.method == 'POST':
-        print("the POST method")
-        username = request.POST.get('username')
-        user = User.objects.filter(username=username)
-        stu = ""
-        if user.count():
+        token = request.POST.get('token')
+        verify = parse_payload(token)
+        response = {}
+        if verify['status']:
+            data = verify['data']
+            username = data['username']
+            user = User.objects.filter(username=username)
             user = user.first()
-            stu = user.spark_id
-            print(stu)
+            stu_id = int(user.stu_id)
+            response = student_information(stu_id)
+        else:
+            response['error'] = "token无效或或过期"
 
-    return HttpResponse(stu)
+    return JsonResponse(response)
+
+
+def student_info(request):
+    if request.method == 'POST':
+        stu_id = request.POST.get('stu_id')
+        stu_id = int(stu_id)
+        response = student_information(stu_id)
+
+    return JsonResponse(response)
+
+
+def student_track_make(start, end, spark_id):
+    start_time = datetime.datetime.strptime(start, '%Y-%m-%d')
+    end_time = datetime.datetime.strptime(end, '%Y-%m-%d')
+    offset = datetime.timedelta(days=1)
+    end_time = end_time + offset
+    time_divide = pd.date_range(start_time, end_time, freq='24H')
+
+    history = range_history_select(start, end)
+    history = history[history['user_id'] == spark_id]
+    time_divide = pd.date_range(start_time, end_time, freq='24H')
+    nums = []
+    for i in range(len(time_divide) - 1):
+        temp = history[history['action_time'] > time_divide[i]]
+        result = temp[temp['action_time'] <= time_divide[i + 1]]
+        nums.append(len(result))
+
+    return nums
+
+
+def personal_browse_track(request):
+    if request.method == 'POST':
+        token = request.POST.get('token')
+        verify = parse_payload(token)
+        response = {}
+        if verify['status']:
+            data = verify['data']
+            username = data['username']
+            user = User.objects.filter(username=username)
+            user = user.first()
+            spark_id = int(user.spark_id)
+            start = request.POST.get('startTime')
+            end = request.POST.get('endTime')
+
+            response['daily_browse'] = student_track_make(start, end, spark_id)
+        else:
+            response['error'] = "token失效或者验证失败"
+
+    return JsonResponse(response)
+
+
+def student_browse_track(request):
+    if request.method == 'POST':
+        response = {}
+        stu_id = request.POST.get('stu_id')
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        user = User.objects.filter(stu_id=stu_id)
+        print(user)
+        user = user.first()
+        spark_id = int(user.spark_id)
+        response['daily_browse'] = student_track_make(start, end, spark_id)
+
+    return JsonResponse(response)
+
+
+# ======================学生个人信息部分结束========================
+
+
+
+
+
+
+
 
 
 
