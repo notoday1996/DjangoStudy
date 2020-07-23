@@ -253,8 +253,9 @@ def student_information(stu_id):
 
     path = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')
     information = pd.read_excel(path, encoding='utf-8', index_col=False, header=0)
-    print(information)
+    # print(information)
     stu = information[information['stu_id'] == stu_id]
+    print(stu)
 
     response['this_week_browse'] = stu['this_week_browse'].tolist()[0]
     response['last_week_browse'] = stu['last_week_browse'].tolist()[0]
@@ -289,9 +290,13 @@ def personal_information(request):
 
 def student_info(request):
     if request.method == 'POST':
+        response = {'status': False, 'data': None, 'error': None}
         stu_id = request.POST.get('stu_id')
         stu_id = int(stu_id)
-        response = student_information(stu_id)
+        result = student_information(stu_id)
+        if len(result) != 0:
+            response['status'] = 200
+            response['data'] = result
 
     return JsonResponse(response)
 
@@ -355,26 +360,30 @@ def student_browse_track(request):
 def compare_radar(request):
     # 几个维度分别为，浏览量、发言量、最新的元认知水平、教程的完成度、最新一次的小测成绩、自我评价
     if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
         token = request.META.get('HTTP_AUTHORIZATION')
         print(token)
         verify = parse_payload(token)
-        response = {}
-        print(verify['status'])
-        print(verify['data'])
-        if verify['status']:
-            data = verify['data']
-            username = data['username']
-            user = User.objects.filter(username=username)
-            user = user.first()
-            me_id = int(user.stu_id)
-            # me_id = user.stu_id
-            compare_id = request.POST.get('stu_id')
-            compare_id = int(compare_id)
-            me = student_information(me_id)
-            compare = student_information(compare_id)
+        result = {}
+        data = verify['data']
+        username = data['username']
+        user = User.objects.filter(username=username)
+        user = user.first()
+        me_id = int(user.stu_id)
+        # me_id = user.stu_id
+        compare_id = request.POST.get('stu_id')
+        compare_id = int(compare_id)
+        me = student_information(me_id)
+        compare = student_information(compare_id)
+        print(len(me))
+        print(len(compare))
 
-            response['me'] = me
-            response['compare'] = compare
+        if len(me) != 0 and len(compare) != 0:
+            result['me'] = me
+            result['compare'] = compare
+            response['data'] = result
+            response['status'] = 200
+
         else:
             response['error'] = "token无效或者过期"
 
