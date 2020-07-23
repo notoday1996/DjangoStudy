@@ -131,15 +131,14 @@ def posts_select():
 # ======================根据发送的时间获取相应统计数据=======================
 def basic_information(request):
     # ==================读取所有的历史记录=================
-    cursor = connection.cursor()
-    cursor.execute("select * from history")
-    data = cursor.fetchall()
-    df = pd.DataFrame(list(data))
+    path = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
+    history = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
     result = {}
+    response = {'status': 200, 'data': None, 'error': None}
 
     result['spark_start_time'] = "2017年5月"
     result['previous_spark'] = "火花空间论坛"
-    result['data_nums'] = 57717 + len(df)
+    result['data_nums'] = 57717 + len(history)
     result['serve_student'] = "3000余人"
     result['all_page'] = "11000+"
     result['all_wiki'] = "9500+"
@@ -147,7 +146,9 @@ def basic_information(request):
     result['all_aq'] = "300+"
     result['update_times'] = "42812次"
 
-    return JsonResponse(result)
+    response['data'] = result
+
+    return JsonResponse(response)
 
 
 def browse_statistic(request):
@@ -155,7 +156,7 @@ def browse_statistic(request):
         start = request.POST.get('startTime')
         end = request.POST.get('endTime')
         range_history = range_history_select(start, end)
-        response = {}
+        response = {'status': 200, 'data': None, 'error': None}
 
         time1 = datetime.datetime.now()
         temp = range_history['action_post_id'].value_counts().rename('count').reset_index()
@@ -168,14 +169,16 @@ def browse_statistic(request):
 
         post = posts_select()
         temp_result = post[post['ID'].isin(top)]
-        result = temp_result['post_title'].tolist()
-        print(result)
+        titles = temp_result['post_title'].tolist()
+        guid = temp_result['guid'].tolist()
+        print(titles)
+        result = {}
 
-        response['post_title'] = result
-        response['count'] = nums
+        result['post_title'] = titles
+        result['count'] = nums
+        result['guid'] = guid
 
-        time3 = datetime.datetime.now()
-        print(time3-time2)
+        response['data'] = result
 
         return JsonResponse(response)
 
@@ -192,7 +195,7 @@ def qa_statistic(request):
         temp = post[post['ID'].isin(posts_list)]
         question = temp[temp['post_type'] == 'dwqa-question']
         answer = temp[temp['post_type'] == 'dwqa-answer']
-        response = {}
+        response = {'status': 200, 'data': None, 'error': None}
 
         total_question = len(question)
         total_answer = len(answer)
@@ -213,10 +216,14 @@ def qa_statistic(request):
         post_title = ret['post_title'].tolist()
         post_url = ret['guid'].tolist()
 
-        response['total_question'] = total_question
-        response['total_answer'] = total_answer
-        response['hot_qa'] = post_title
-        response['url'] = post_url
+        result = {}
+
+        result['total_question'] = total_question
+        result['total_answer'] = total_answer
+        result['hot_qa'] = post_title
+        result['url'] = post_url
+
+        response['data'] = result
 
         return JsonResponse(response)
 
@@ -230,16 +237,18 @@ def browse_track(request):
         offset = datetime.timedelta(days=1)
         end_time = end_time + offset
         time_divide = pd.date_range(start_time, end_time, freq='24H')
-        response = {}
+        response = {'status': 200, 'data': None, 'error': None}
+        result = {}
         print(time_divide)
         history = range_history_select(start, end)
         print(history)
         nums = []
         for i in range(len(time_divide)-1):
             temp = history[history['action_time'] > time_divide[i]]
-            result = temp[temp['action_time'] <= time_divide[i+1]]
-            nums.append(len(result))
-        response['daily_browse'] = nums
+            ret = temp[temp['action_time'] <= time_divide[i+1]]
+            nums.append(len(ret))
+        result['daily_browse'] = nums
+        response['data'] = result
         print(response)
         return JsonResponse(response)
 # =======================总体情况统计部分结束=========================
@@ -257,7 +266,7 @@ def student_information(stu_id):
     stu = information[information['stu_id'] == stu_id]
     print(stu)
 
-    response['this_week_browse'] = stu['this_week_browse'].tolist()[0]
+    response['two_weeks_ago_browse'] = stu['two_weeks_ago_browse'].tolist()[0]
     response['last_week_browse'] = stu['last_week_browse'].tolist()[0]
     response['talk_QQ'] = stu['talk_QQ'].tolist()[0]
     response['test_score'] = stu['talk_QQ'].tolist()[0]
@@ -271,19 +280,21 @@ def student_information(stu_id):
 
 
 def personal_information(request):
-    if request.method == 'POST':
-        token = request.META.get('HTTP_AUTHORIZATION')
-        verify = parse_payload(token)
-        response = {}
-        if verify['status']:
-            data = verify['data']
-            username = data['username']
-            user = User.objects.filter(username=username)
-            user = user.first()
-            stu_id = int(user.stu_id)
-            response = student_information(stu_id)
-        else:
-            response['error'] = "token无效或或过期"
+    response = {'status': False, 'data': None, 'error': None}
+    token = request.META.get('HTTP_AUTHORIZATION')
+    print(token)
+    verify = parse_payload(token)
+    data = verify['data']
+    username = data['username']
+    print(username)
+    user = User.objects.filter(username=username)
+    user = user.first()
+    stu_id = int(user.stu_id)
+    print(stu_id)
+    ret = student_information(stu_id)
+    if len(ret) != 0:
+        response['data'] = ret
+        response['status'] = 200
 
     return JsonResponse(response)
 
@@ -324,17 +335,19 @@ def personal_browse_track(request):
     if request.method == 'POST':
         token = request.META.get('HTTP_AUTHORIZATION')
         verify = parse_payload(token)
-        response = {}
-        if verify['status']:
-            data = verify['data']
-            username = data['username']
-            user = User.objects.filter(username=username)
-            user = user.first()
-            spark_id = int(user.spark_id)
-            start = request.POST.get('startTime')
-            end = request.POST.get('endTime')
-
-            response['daily_browse'] = student_track_make(start, end, spark_id)
+        response = {'status': False, 'data': None, 'error': None}
+        result = {}
+        data = verify['data']
+        username = data['username']
+        user = User.objects.filter(username=username)
+        user = user.first()
+        spark_id = int(user.spark_id)
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        result['daily_browse'] = student_track_make(start, end, spark_id)
+        if len(result) != 0:
+            response['data'] = result
+            response['status'] = 200
         else:
             response['error'] = "token失效或者验证失败"
 
@@ -343,15 +356,21 @@ def personal_browse_track(request):
 
 def student_browse_track(request):
     if request.method == 'POST':
-        response = {}
+        response = {'status': False, 'data': None, 'error': None}
+        result = {}
         stu_id = request.POST.get('stu_id')
+        stu_id = int(stu_id)
         start = request.POST.get('startTime')
         end = request.POST.get('endTime')
-        user = User.objects.filter(stu_id=stu_id)
-        print(user)
-        user = user.first()
-        spark_id = int(user.spark_id)
-        response['daily_browse'] = student_track_make(start, end, spark_id)
+        path = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')
+        information = pd.read_excel(path, encoding='utf-8', index_col=False, header=0)
+        student = information[information['stu_id'] == stu_id]
+        spark_id = student['spark_id'].tolist()[0]
+
+        result['daily_browse'] = student_track_make(start, end, spark_id)
+        if len(result) != 0:
+            response['status'] = 200
+            response['data'] = result
 
     return JsonResponse(response)
 
