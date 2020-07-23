@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse,JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.db import connection
 import json
 import pandas as pd
@@ -31,7 +31,7 @@ def hello(request):
 
 def tokenTest(request):
 
-    token = create_token({'username': 'testAccount'})
+    token = create_token({'username': 'superAdmin'})
     de_token = parse_payload(token)
     print(token)
 
@@ -96,10 +96,11 @@ def register(request):
                 User.objects.create(username=username, password=password, spark_id=spark_id, stu_id=stu_id, email=email, privilege=1)
                 print("注册成功")
                 response['status'] = 20000
+                response['tips'] = "注册成功"
             else:
                 response['error'] = "两次密码不一致"
 
-    return HttpResponse(json.dumps(response))
+    return JsonResponse(response)
 
 # ======================总体情况统计部分=====================
 
@@ -209,11 +210,13 @@ def qa_statistic(request):
         top_qa = qa_list['post_id'].tolist()
 
         ret = post[post['ID'].isin(top_qa)]
-        result = ret['post_title'].tolist()
+        post_title = ret['post_title'].tolist()
+        post_url = ret['guid'].tolist()
 
         response['total_question'] = total_question
         response['total_answer'] = total_answer
-        response['hot_qa'] = result
+        response['hot_qa'] = post_title
+        response['url'] = post_url
 
         return JsonResponse(response)
 
@@ -262,12 +265,13 @@ def student_information(stu_id):
     response['perception_style'] = stu['perception_style'].tolist()[0]
     response['understand_style'] = stu['understand_style'].tolist()[0]
     response['completion'] = stu['completion'].tolist()[0]
+    response['self_evaluation'] = stu['self_evaluation'].tolist()[0]
     return response
 
 
 def personal_information(request):
     if request.method == 'POST':
-        token = request.POST.get('token')
+        token = request.META.get('HTTP_AUTHORIZATION')
         verify = parse_payload(token)
         response = {}
         if verify['status']:
@@ -313,7 +317,7 @@ def student_track_make(start, end, spark_id):
 
 def personal_browse_track(request):
     if request.method == 'POST':
-        token = request.POST.get('token')
+        token = request.META.get('HTTP_AUTHORIZATION')
         verify = parse_payload(token)
         response = {}
         if verify['status']:
@@ -343,6 +347,36 @@ def student_browse_track(request):
         user = user.first()
         spark_id = int(user.spark_id)
         response['daily_browse'] = student_track_make(start, end, spark_id)
+
+    return JsonResponse(response)
+
+
+# ==通过数据归一化处理，把几个维度得分转化为0-1的范围，通过雷达图对比==
+def compare_radar(request):
+    # 几个维度分别为，浏览量、发言量、最新的元认知水平、教程的完成度、最新一次的小测成绩、自我评价
+    if request.method == 'POST':
+        token = request.META.get('HTTP_AUTHORIZATION')
+        print(token)
+        verify = parse_payload(token)
+        response = {}
+        print(verify['status'])
+        print(verify['data'])
+        if verify['status']:
+            data = verify['data']
+            username = data['username']
+            user = User.objects.filter(username=username)
+            user = user.first()
+            me_id = int(user.stu_id)
+            # me_id = user.stu_id
+            compare_id = request.POST.get('stu_id')
+            compare_id = int(compare_id)
+            me = student_information(me_id)
+            compare = student_information(compare_id)
+
+            response['me'] = me
+            response['compare'] = compare
+        else:
+            response['error'] = "token无效或者过期"
 
     return JsonResponse(response)
 
