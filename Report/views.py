@@ -8,17 +8,7 @@ from Report.jwt_token import create_token, parse_payload, parse_token
 import hashlib
 from Report.models import User
 import os
-
-
-def book_detail(request, book_id):
-    text = "您的图书ID是 %s" % book_id
-    return HttpResponse(text)
-
-
-def author_detail(request):
-    author_id = request.GET.get('id')
-    text = "这个作者的id是： %s" % author_id
-    return HttpResponse(text)
+from Report.reommendation import recommendation_page
 
 
 def hello(request):
@@ -411,7 +401,23 @@ def compare_radar(request):
 
 # ======================学生个人信息部分结束========================
 
+# =========================基于用户预分类结果的学习内容推荐======================
+def recommendation(request):
+    # if request.method == 'POST':
+    response = {'status': False, 'data': [], 'error': None}
+    token = request.META.get('HTTP_AUTHORIZATION')
+    verify = parse_payload(token)
+    data = verify['data']
+    username = data['username']
+    user = User.objects.filter(username=username)
+    user = user.first()
+    stu_id = int(user.stu_id)
+    spark_id = int(user.spark_id)
+    print(stu_id)
+    recommendation_pages = recommendation_page(stu_id, spark_id)
+    print(recommendation_pages)
 
+    return JsonResponse(response)
 
 
 

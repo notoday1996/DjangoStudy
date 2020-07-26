@@ -37,5 +37,6 @@ urlpatterns = [
     path('personal_browse_track', views.personal_browse_track),
     path('student_browse_track', views.student_browse_track),
     path('compare_radar', views.compare_radar),
+    path('recommendation', views.recommendation),
 
 ]
