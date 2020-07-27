@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 
-def recommendation_page(stu_id, spark_id):
+def recommendation_page(stu_id, spark_id, history):
     path = path = os.path.abspath('../DjangoStudy/data_platform/用户预分类.xlsx')
     df = pd.read_excel(path, encoding='utf-8', index_col=False, header=0)
     print(df)
@@ -23,8 +23,8 @@ def recommendation_page(stu_id, spark_id):
     spark_id_list = spark_id_list.reset_index(drop=True)
     print(spark_id_list)
 
-    path2 = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
-    history = pd.read_csv(path2, encoding='utf-8', index_col=False, header=0)
+    # path2 = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
+    # history = pd.read_csv(path2, encoding='utf-8', index_col=False, header=0)
 
     # ===================根据群组所有用的ID获取所有的相关的浏览记录========================
     need = history[history['user_id'].isin(spark_id_list)]
@@ -109,4 +109,5 @@ def recommendation_page(stu_id, spark_id):
     final_res = res.index
     final_res = final_res.tolist()  # 得到最终所有页面ID的评分
     print(final_res[:10])
+    return final_res[:10]
 

@@ -4,7 +4,7 @@ from django.http import HttpResponse
 
 
 class AuthToken(MiddlewareMixin):
-    white_list = ['/login', '/register' ]  # 白名单
+    white_list = ['/login', '/register',  '/']  # 白名单
 
     def process_request(self, request):
         token = request.META.get('HTTP_AUTHORIZATION')

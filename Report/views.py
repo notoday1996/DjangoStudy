@@ -12,11 +12,8 @@ from Report.reommendation import recommendation_page
 
 
 def hello(request):
-    a = "返回"
-    data ={
-        'aaa': a,
-    }
-    return HttpResponse(json.dumps(data), content_type='application/json')
+    a = "欢迎来到火花空间数据分析平台"
+    return HttpResponse(a)
 
 
 def tokenTest(request):
@@ -104,12 +101,23 @@ def range_history_select(str1, str2):
 
     path = path = os.path.abspath('../DjangoStudy/data_platform/wp_history.csv')
     history = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+    useless_pages = useless_list()
+    # =========去除导航页等无效页面===============
+    history = history[~history['action_post_id'].isin(useless_pages)]
 
     history['action_time'] = pd.to_datetime(history['action_time'])
     history['leave_time'] = pd.to_datetime(history['leave_time'])
 
     range_history = history[(history['action_time'] > start_time) & (history['action_time'] <= end_time)]
     return range_history
+
+
+def useless_list():
+    path = os.path.abspath('../DjangoStudy/data_platform/wp_posts.csv')
+    post = pd.read_csv(path, encoding='utf-8', index_col=False, header=0)
+    useless = post[post['post_type'] == 'page']
+    useless_page = useless['ID'].tolist()
+    return useless_page
 
 
 def posts_select():
@@ -403,19 +411,37 @@ def compare_radar(request):
 
 # =========================基于用户预分类结果的学习内容推荐======================
 def recommendation(request):
-    # if request.method == 'POST':
-    response = {'status': False, 'data': [], 'error': None}
-    token = request.META.get('HTTP_AUTHORIZATION')
-    verify = parse_payload(token)
-    data = verify['data']
-    username = data['username']
-    user = User.objects.filter(username=username)
-    user = user.first()
-    stu_id = int(user.stu_id)
-    spark_id = int(user.spark_id)
-    print(stu_id)
-    recommendation_pages = recommendation_page(stu_id, spark_id)
-    print(recommendation_pages)
+    if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
+        result = {}
+        token = request.META.get('HTTP_AUTHORIZATION')
+        verify = parse_payload(token)
+        data = verify['data']
+        username = data['username']
+        user = User.objects.filter(username=username)
+        user = user.first()
+        stu_id = int(user.stu_id)
+        spark_id = int(user.spark_id)
+        print(stu_id)
+
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        history = range_history_select(start, end)
+
+        recommendation_pages = recommendation_page(stu_id, spark_id, history)
+        # recommendation_pages = map(eval, recommendation_pages)
+        print(recommendation_pages)
+        if len(recommendation_pages) != 0:
+            posts = posts_select()
+            recommendation_list = posts[posts['ID'].isin(recommendation_pages)]
+            print(recommendation_list)
+            title = recommendation_list['post_title'].tolist()
+            print(title)
+            url = recommendation_list['guid'].tolist()
+            result['title'] = title
+            result['url'] = url
+            response['data'] = result
+            response['status'] = 200
 
     return JsonResponse(response)
 
