@@ -8,7 +8,7 @@ from jwt import exceptions
 JWT_SALT = settings.SECRET_KEY
 
 
-def create_token(payload, timeout=20):
+def create_token(payload, timeout=200):
     """
     :param payload:  例如：{'user_id':1,'username':'wupeiqi'}用户信息
     :param timeout: token的过期时间，默认20分钟
