@@ -457,7 +457,8 @@ def class_basic_information(request):
         response = {'status': False, 'data': [], 'error': None}
         class_id = request.POST.get("class_id")
         sheet_name = "第" + class_id + "大班"
-        path = os.path.abspath('../DjangoStudy/data_platform/大班名单.xls')
+        print(sheet_name)
+        path = os.path.abspath('../DjangoStudy/data_platform/大班名单.xlsx')
         class_list = pd.read_excel(path, encoding='utf-8', index_col=False, header=0, sheet_name=sheet_name)
         spark_list = class_list['spark_id'].tolist()
         path2 = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')

@@ -38,5 +38,6 @@ urlpatterns = [
     path('student_browse_track', views.student_browse_track),
     path('compare_radar', views.compare_radar),
     path('recommendation', views.recommendation),
+    path('class_basic_information', views.class_basic_information),
 
 ]
