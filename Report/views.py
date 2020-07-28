@@ -37,8 +37,7 @@ def passwordTest(request):
 
 def login(request):
     if request.method == 'POST':
-        print("the POST method")
-        response = {}
+        response = {'status': False, 'data': None, 'error': None}
         username = request.POST.get('username')
         pwd = request.POST.get('password')
         md5 = hashlib.md5()
@@ -49,8 +48,12 @@ def login(request):
             user = user.first()
             if user.password == password:
                 token = create_token({'username': username})
+                privilege = user.privilege
+                result = {}
+                result['token'] = token
+                result['privilege'] = privilege
                 response['status'] = 200
-                response['token'] = token
+                response['data'] = result
                 print("登入成功")
             else:
                 response['error'] = "密码错误"
@@ -445,7 +448,45 @@ def recommendation(request):
 
     return JsonResponse(response)
 
+# ================================推荐部分结束=======================================
 
+
+# ==============================大班的基础信息统计=================================
+def class_basic_information(request):
+    if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
+        class_id = request.POST.get("class_id")
+        sheet_name = "第" + class_id + "大班"
+        path = os.path.abspath('../DjangoStudy/data_platform/大班名单.xls')
+        class_list = pd.read_excel(path, encoding='utf-8', index_col=False, header=0, sheet_name=sheet_name)
+        spark_list = class_list['spark_id'].tolist()
+        path2 = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')
+        stu_info = pd.read_excel(path2, encoding='utf-8', index_col=False, header=0)
+        target_stu = stu_info[stu_info['spark_id'].isin(spark_list)]
+        target_stu = target_stu.drop(['stu_id', 'spark_id'], axis=1)
+        mean_score = []
+        result = {}
+        for col in target_stu.columns:
+            mean = target_stu[col].mean()
+            mean_score.append(round(mean, 3))
+
+        print(mean_score)
+        result['deal_style'] = mean_score[0]
+        result['perception_style'] = mean_score[1]
+        result['input_style'] = mean_score[2]
+        result['understand_style'] = mean_score[3]
+        result['two_weeks_ago_browse'] = mean_score[4]
+        result['las_week_browse'] = mean_score[5]
+        result['tale_QQ'] = mean_score[6]
+        result['test_score'] = mean_score[7]
+        result['metacognition'] = mean_score[8]
+        result['completion'] = mean_score[9]
+        result['self_evaluation'] = mean_score[10]
+        if len(result) != 0:
+            response['status'] = 200
+            response['data'] = result
+
+        return JsonResponse(response)
 
 
 
