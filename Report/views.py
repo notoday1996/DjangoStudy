@@ -109,7 +109,7 @@ def range_history_select(str1, str2):
     history = history[~history['action_post_id'].isin(useless_pages)]
 
     history['action_time'] = pd.to_datetime(history['action_time'])
-    history['leave_time'] = pd.to_datetime(history['leave_time'])
+    # history['leave_time'] = pd.to_datetime(history['leave_time'])
 
     range_history = history[(history['action_time'] > start_time) & (history['action_time'] <= end_time)]
     return range_history
@@ -189,8 +189,6 @@ def qa_statistic(request):
         start = request.POST.get('startTime')
         end = request.POST.get('endTime')
         range_history = range_history_select(start, end)
-        range_history = range_history.drop_duplicates(keep='first')
-        range_history = range_history.reset_index(drop=True)
         posts_list = range_history['action_post_id'].tolist()
         post = posts_select()
         temp = post[post['ID'].isin(posts_list)]
@@ -205,8 +203,8 @@ def qa_statistic(request):
         a_list = answer['ID'].tolist()
         qa = q_list + a_list
 
-        all_history = range_history_select(start, end)
-        qa_list = all_history[all_history['action_post_id'].isin(qa)]
+        # all_history = range_history_select(start, end)
+        qa_list = range_history[range_history['action_post_id'].isin(qa)]
         qa_list = qa_list['action_post_id'].value_counts().rename('count').reset_index()
         qa_list.columns = ['post_id', 'count']
         qa_list = qa_list.head(10)
@@ -452,15 +450,19 @@ def recommendation(request):
 
 
 # ==============================大班的基础信息统计=================================
+def class_list(str):
+    sheet_name = "第" + str + "大班"
+    print(sheet_name)
+    path = os.path.abspath('../DjangoStudy/data_platform/大班名单.xlsx')
+    class_list = pd.read_excel(path, encoding='utf-8', index_col=False, header=0, sheet_name=sheet_name)
+    return class_list['spark_id'].tolist()
+
+
 def class_basic_information(request):
     if request.method == 'POST':
         response = {'status': False, 'data': [], 'error': None}
         class_id = request.POST.get("class_id")
-        sheet_name = "第" + class_id + "大班"
-        print(sheet_name)
-        path = os.path.abspath('../DjangoStudy/data_platform/大班名单.xlsx')
-        class_list = pd.read_excel(path, encoding='utf-8', index_col=False, header=0, sheet_name=sheet_name)
-        spark_list = class_list['spark_id'].tolist()
+        spark_list = class_list(class_id)
         path2 = os.path.abspath('../DjangoStudy/data_platform/student_information.xls')
         stu_info = pd.read_excel(path2, encoding='utf-8', index_col=False, header=0)
         target_stu = stu_info[stu_info['spark_id'].isin(spark_list)]
@@ -486,6 +488,49 @@ def class_basic_information(request):
         if len(result) != 0:
             response['status'] = 200
             response['data'] = result
+
+        return JsonResponse(response)
+
+
+def class_qa_information(request):
+    if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
+        class_id = request.POST.get("class_id")
+        spark_list = class_list(class_id)
+
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        history = range_history_select(start, end)
+        history = history[history['user_id'].isin(spark_list)]
+
+        posts_list = history['action_post_id'].tolist()
+        post = posts_select()
+        temp = post[post['ID'].isin(posts_list)]
+        question = temp[temp['post_type'] == 'dwqa-question']
+        answer = temp[temp['post_type'] == 'dwqa-answer']
+        result = {}
+
+        result['question_num'] = len(question)
+        result['answer_num'] = len(answer)
+
+        q_list = question['ID'].tolist()
+        a_list = answer['ID'].tolist()
+        qa = q_list + a_list
+
+        qa_list = history[history['action_post_id'].isin(qa)]
+        qa_list = qa_list['action_post_id'].value_counts().rename('count').reset_index()
+        qa_list.columns = ['post_id', 'count']
+        qa_list = qa_list.head(10)
+        print(qa_list)
+        top_qa = qa_list['post_id'].tolist()
+
+        ret = post[post['ID'].isin(top_qa)]
+        result['post_title'] = ret['post_title'].tolist()
+        result['post_url'] = ret['guid'].tolist()
+
+        if len(result) != 0:
+            response['data'] = result
+            response['status'] = 200
 
         return JsonResponse(response)
 
