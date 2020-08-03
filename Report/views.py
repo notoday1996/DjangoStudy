@@ -181,7 +181,7 @@ def browse_statistic(request):
 
         response['data'] = result
 
-        return JsonResponse(response)
+        return JsonResponse(response, json_dumps_params={'ensure_ascii':False})
 
 
 def qa_statistic(request):
@@ -444,7 +444,7 @@ def recommendation(request):
             response['data'] = result
             response['status'] = 200
 
-    return JsonResponse(response)
+    return JsonResponse(response, json_dumps_params={'ensure_ascii': False})
 
 # ================================推荐部分结束=======================================
 
