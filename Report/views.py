@@ -268,7 +268,7 @@ def student_information(stu_id):
     response['two_weeks_ago_browse'] = stu['two_weeks_ago_browse'].tolist()[0]
     response['last_week_browse'] = stu['last_week_browse'].tolist()[0]
     response['talk_QQ'] = stu['talk_QQ'].tolist()[0]
-    response['test_score'] = stu['talk_QQ'].tolist()[0]
+    response['test_score'] = stu['test_score'].tolist()[0]
     response['metacognition'] = stu['metacognition'].tolist()[0]
     response['deal_style'] = stu['deal_style'].tolist()[0]
     response['perception_style'] = stu['perception_style'].tolist()[0]
