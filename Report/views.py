@@ -408,6 +408,21 @@ def compare_radar(request):
     return JsonResponse(response)
 
 
+def radar_maker(request):
+    if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
+        result = {}
+        stu_id = request.POST.get('stu_id')
+        stu_id = int(stu_id)
+        stu = student_information(stu_id)
+        result['stu_radar'] = stu
+        if len(result) != 0:
+            response['status'] = 200
+            response['data'] = result
+
+        return JsonResponse(response)
+
+
 # ======================学生个人信息部分结束========================
 
 # =========================基于用户预分类结果的学习内容推荐======================
