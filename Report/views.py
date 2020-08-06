@@ -13,7 +13,7 @@ from Report.reommendation import recommendation_page
 
 def hello(request):
     a = "欢迎来到火花空间数据分析平台"
-    return HttpResponse(a)
+    return render(request, 'index.html')
 
 
 def tokenTest(request):
@@ -531,6 +531,43 @@ def class_qa_information(request):
         if len(result) != 0:
             response['data'] = result
             response['status'] = 200
+
+        return JsonResponse(response)
+
+
+def class_track_make(start, end, spark_list):
+    start_time = datetime.datetime.strptime(start, '%Y-%m-%d')
+    end_time = datetime.datetime.strptime(end, '%Y-%m-%d')
+    offset = datetime.timedelta(days=1)
+    end_time = end_time + offset
+    time_divide = pd.date_range(start_time, end_time, freq='24H')
+
+    history = range_history_select(start, end)
+    history = history[history['user_id'].isin(spark_list)]
+    nums = []
+    for i in range(len(time_divide) - 1):
+        temp = history[history['action_time'] > time_divide[i]]
+        result = temp[temp['action_time'] <= time_divide[i + 1]]
+        nums.append(len(result))
+
+    return nums
+
+
+def class_browse_track(request):
+    if request.method == 'POST':
+        response = {'status': False, 'data': [], 'error': None}
+        class_id = request.POST.get("class_id")
+        spark_list = class_list(class_id)
+        print(spark_list)
+        start = request.POST.get('startTime')
+        end = request.POST.get('endTime')
+        daily_browse = class_track_make(start, end, spark_list)
+        print(daily_browse)
+        result = {}
+        result['daily_browse'] = daily_browse
+        if len(result) != 0:
+            response['status'] = 200
+            response['data'] = result
 
         return JsonResponse(response)
 
