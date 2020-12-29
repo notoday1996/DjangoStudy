@@ -42,5 +42,6 @@ urlpatterns = [
     path('class_qa_information', views.class_qa_information),
     path('class_browse_track', views.class_browse_track),
     path('radar_maker', views.radar_maker),
+    path('general_information', views.general_information),
 
 ]

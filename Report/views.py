@@ -587,6 +587,35 @@ def class_browse_track(request):
         return JsonResponse(response)
 
 
+# =============================学情报告展示================================
+
+# =====================通用信息部分============================
+def general_information(request):
+    response = {'status': False, 'data': [], 'error': None}
+    path = os.path.abspath('../DjangoStudy/data_platform/general_data.xlsx')
+    basic_info = pd.read_excel(path, encoding='utf-8', index_col=False, header=0)
+    result = {}
+
+    result['this_week_browse'] = int(basic_info['this_week_browse'])
+    result['last_week_browse'] = int(basic_info['last_week_browse'])
+    result['this_week_score'] = int(basic_info['this_week_score'])
+    result['last_week_score'] = int(basic_info['last_week_score'])
+    result['tw_QQ'] = int(basic_info['tw_QQ'])
+    result['lw_QQ'] = int(basic_info['lw_QQ'])
+    result['tw_average_completion_degree'] = int(basic_info['tw_average_completion_degree'])
+    result['lw_average_completion_degree'] = int(basic_info['lw_average_completion_degree'])
+    result['lw_preview'] = int(basic_info['lw_preview'])
+    result['tw_preview'] = int(basic_info['tw_preview'])
+
+    path2 = os.path.abspath('../DjangoStudy/data_platform/two_week_browse_compare.xlsx')
+    week_browse = pd.read_excel(path2, encoding='utf-8', index_col=False, header=0)
+    result['lw_browse_track'] = week_browse['last_week'].tolist()
+    result['tw_browse_track'] = week_browse['this_week'].tolist()
+
+    response['status'] = 200
+    response['data'] = result
+
+    return JsonResponse(response)
 
 
 
