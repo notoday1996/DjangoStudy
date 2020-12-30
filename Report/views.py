@@ -598,12 +598,12 @@ def general_information(request):
 
     result['this_week_browse'] = int(basic_info['this_week_browse'])
     result['last_week_browse'] = int(basic_info['last_week_browse'])
-    result['this_week_score'] = int(basic_info['this_week_score'])
-    result['last_week_score'] = int(basic_info['last_week_score'])
+    result['this_week_score'] = float(basic_info['this_week_score'])
+    result['last_week_score'] = float(basic_info['last_week_score'])
     result['tw_QQ'] = int(basic_info['tw_QQ'])
     result['lw_QQ'] = int(basic_info['lw_QQ'])
-    result['tw_average_completion_degree'] = int(basic_info['tw_average_completion_degree'])
-    result['lw_average_completion_degree'] = int(basic_info['lw_average_completion_degree'])
+    result['tw_average_completion_degree'] = float(basic_info['tw_average_completion_degree'])
+    result['lw_average_completion_degree'] = float(basic_info['lw_average_completion_degree'])
     result['lw_preview'] = int(basic_info['lw_preview'])
     result['tw_preview'] = int(basic_info['tw_preview'])
 
